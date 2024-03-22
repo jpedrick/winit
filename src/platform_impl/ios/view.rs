@@ -2,20 +2,23 @@
 use std::cell::{Cell, RefCell};
 
 use icrate::Foundation::{CGFloat, CGPoint, CGRect, MainThreadMarker, NSObject, NSSet};
+use objc2::ffi::NSUInteger;
 use objc2::rc::Id;
 use objc2::runtime::{AnyClass, NSObjectProtocol, ProtocolObject};
 use objc2::{
     declare_class, extern_methods, msg_send, msg_send_id, mutability, sel, ClassType, DeclaredClass,
 };
+use std::collections::HashSet;
 
 use super::app_state::{self, EventWrapper};
 use super::uikit::{
     UIEvent, UIForceTouchCapability, UIGestureRecognizer, UIGestureRecognizerDelegate,
     UIGestureRecognizerState, UIPanGestureRecognizer, UIPinchGestureRecognizer, UIResponder,
-    UIRotationGestureRecognizer, UITapGestureRecognizer, UITouch, UITouchPhase, UITouchType,
-    UITraitCollection, UIView,
+    UIRotationGestureRecognizer, UISwipeGestureRecognizer, UISwipeGestureRecognizerDirection,
+    UITapGestureRecognizer, UITouch, UITouchPhase, UITouchType, UITraitCollection, UIView,
 };
 use super::window::WinitUIWindow;
+use crate::platform::ios::SwipeDirection;
 use crate::{
     dpi::PhysicalPosition,
     event::{Event, Force, Touch, TouchPhase, WindowEvent},
@@ -28,6 +31,7 @@ pub struct WinitViewState {
     doubletap_gesture_recognizer: RefCell<Option<Id<UITapGestureRecognizer>>>,
     rotation_gesture_recognizer: RefCell<Option<Id<UIRotationGestureRecognizer>>>,
     pan_gesture_recognizer: RefCell<Option<Id<UIPanGestureRecognizer>>>,
+    swipe_gesture_recognizers: RefCell<HashSet<Id<UISwipeGestureRecognizer>>>,
 
     // for iOS delta references the start of the Gesture
     rotation_last_delta: Cell<CGFloat>,
@@ -326,6 +330,37 @@ declare_class!(
             let mtm = MainThreadMarker::new().unwrap();
             app_state::handle_nonuser_event(mtm, gesture_event);
         }
+
+        #[method(swipeGesture:)]
+        fn swipe_gesture(&self, recognizer: &UISwipeGestureRecognizer) {
+            let window = self.window().unwrap();
+            let (phase, location) = match recognizer.state() {
+                UIGestureRecognizerState::Ended => {
+                    let location = recognizer.locationInView(self);
+                    (TouchPhase::Ended, location)
+                }
+                state => panic!("unexpected recognizer state: {:?}", state),
+            };
+
+            let recognizer_direction = recognizer.direction();
+
+            let gesture_event = EventWrapper::StaticEvent(Event::WindowEvent {
+                window_id: RootWindowId(window.id()),
+                event: WindowEvent::SwipeGesture {
+                    device_id: DEVICE_ID,
+                    location: PhysicalPosition::new(location.x as _, location.y as _),
+                    phase,
+                    right: UISwipeGestureRecognizerDirection::Right == recognizer_direction,
+                    left: UISwipeGestureRecognizerDirection::Left == recognizer_direction,
+                    up: UISwipeGestureRecognizerDirection::Up == recognizer_direction,
+                    down: UISwipeGestureRecognizerDirection::Down == recognizer_direction,
+                    number_of_touches: recognizer.numberOfTouchesRequired() as _,
+                },
+            });
+
+            let mtm = MainThreadMarker::new().unwrap();
+            app_state::handle_nonuser_event(mtm, gesture_event);
+        }
     }
 
     unsafe impl NSObjectProtocol for WinitView {}
@@ -366,6 +401,7 @@ impl WinitView {
             doubletap_gesture_recognizer: RefCell::new(None),
             rotation_gesture_recognizer: RefCell::new(None),
             pan_gesture_recognizer: RefCell::new(None),
+            swipe_gesture_recognizers: RefCell::new(HashSet::new()),
 
             rotation_last_delta: Cell::new(0.0),
             pinch_last_delta: Cell::new(0.0),
@@ -416,6 +452,61 @@ impl WinitView {
             }
         } else if let Some(recognizer) = self.ivars().pan_gesture_recognizer.take() {
             self.removeGestureRecognizer(&recognizer);
+        }
+    }
+
+    pub(crate) fn recognize_swipe_gesture(
+        &self,
+        should_recognize: bool,
+        direction: SwipeDirection,
+        number_of_touches_required: u8,
+    ) {
+        let dir: UISwipeGestureRecognizerDirection = direction.into();
+        if should_recognize {
+            let same_recognizer_exists =
+                self.ivars().swipe_gesture_recognizers.borrow().iter().fold(
+                    false,
+                    |a, recognizer| {
+                        if recognizer.direction() == dir
+                            && recognizer.numberOfTouchesRequired()
+                                == number_of_touches_required as NSUInteger
+                        {
+                            a | true
+                        } else {
+                            a
+                        }
+                    },
+                );
+            if !same_recognizer_exists {
+                let swipe: Id<UISwipeGestureRecognizer> = unsafe {
+                    msg_send_id![UISwipeGestureRecognizer::alloc(), initWithTarget: self, action: sel!(swipeGesture:)]
+                };
+                swipe.setDelegate(ProtocolObject::from_ref(self));
+                swipe.setDirection(dir);
+                swipe.setNumberOfTouchesRequired(number_of_touches_required as _);
+                self.addGestureRecognizer(&swipe);
+                self.ivars()
+                    .swipe_gesture_recognizers
+                    .borrow_mut()
+                    .insert(swipe);
+            } else {
+                tracing::warn!("UISwipeGestureRecognizer with {direction:?} and number_of_touches_required:{number_of_touches_required} already exists.");
+            }
+        } else if self.ivars().swipe_gesture_recognizers.borrow().len() > 0 {
+            self.ivars()
+                .swipe_gesture_recognizers
+                .borrow_mut()
+                .retain(|recognizer| {
+                    if recognizer.direction() == dir
+                        && recognizer.numberOfTouchesRequired()
+                            == number_of_touches_required as NSUInteger
+                    {
+                        self.removeGestureRecognizer(&recognizer);
+                        false
+                    } else {
+                        true
+                    }
+                });
         }
     }
 

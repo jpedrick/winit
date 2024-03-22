@@ -420,6 +420,18 @@ impl ApplicationHandler<UserEvent> for Application {
                 window.panned.y += delta.y;
                 println!("Panned ({delta:?})) (now: {:?}), {phase:?}", window.panned);
             }
+            WindowEvent::SwipeGesture {
+                location,
+                phase,
+                right,
+                left,
+                up,
+                down,
+                number_of_touches,
+                ..
+            } => {
+                println!("l:{location:?}, p:{phase:?}, right:{right}, left:{left}, up:{up}, down:{down}, num_touches:{number_of_touches}")
+            }
             WindowEvent::DoubleTapGesture { .. } => {
                 println!("Smart zoom");
             }
