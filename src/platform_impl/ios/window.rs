@@ -10,7 +10,8 @@ use tracing::{debug, warn};
 
 use super::app_state::EventWrapper;
 use super::uikit::{
-    UIApplication, UIResponder, UIScreen, UIScreenOverscanCompensation, UIViewController, UIWindow,
+    UIApplication, UIResponder, UIScreen, UIScreenOverscanCompensation,
+    UISwipeGestureRecognizerDirection, UIViewController, UIWindow,
 };
 use super::view::WinitView;
 use super::view_controller::WinitViewController;
@@ -27,6 +28,19 @@ use crate::{
         WindowButtons, WindowId as RootWindowId, WindowLevel,
     },
 };
+
+use crate::platform::ios::SwipeDirection;
+
+impl From<SwipeDirection> for UISwipeGestureRecognizerDirection {
+    fn from(swipe_direction: SwipeDirection) -> Self {
+        match swipe_direction {
+            SwipeDirection::Up => UISwipeGestureRecognizerDirection::Up,
+            SwipeDirection::Down => UISwipeGestureRecognizerDirection::Down,
+            SwipeDirection::Left => UISwipeGestureRecognizerDirection::Left,
+            SwipeDirection::Right => UISwipeGestureRecognizerDirection::Right,
+        }
+    }
+}
 
 declare_class!(
     #[derive(Debug, PartialEq, Eq, Hash)]
@@ -663,6 +677,16 @@ impl Inner {
 
     pub fn recognize_rotation_gesture(&self, should_recognize: bool) {
         self.view.recognize_rotation_gesture(should_recognize);
+    }
+
+    pub fn recognize_swipe_gesture(
+        &self,
+        should_recognize: bool,
+        direction: SwipeDirection,
+        number_of_touches_required: u8,
+    ) {
+        self.view
+            .recognize_swipe_gesture(should_recognize, direction, number_of_touches_required);
     }
 }
 

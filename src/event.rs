@@ -379,6 +379,23 @@ pub enum WindowEvent {
         phase: TouchPhase,
     },
 
+    /// N-finger swipe gesture.
+    ///
+    /// Positive delta values indicate rotation counterclockwise and
+    /// negative delta values indicate rotation clockwise.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - Only available on **macOS** and **iOS**.
+    /// - On iOS, not recognized by default. It must be enabled when needed.
+    SwipeGesture {
+        device_id: DeviceId,
+        location: PhysicalPosition<f32>,
+        phase: TouchPhase,
+        direction: SwipeDirection,
+        number_of_touches: u8,
+    },
+
     /// Touchpad pressure event.
     ///
     /// At the moment, only supported on Apple forcetouch-capable macbooks.
@@ -972,6 +989,20 @@ impl ElementState {
     pub fn is_pressed(self) -> bool {
         self == ElementState::Pressed
     }
+}
+
+/// Describes swipe direction
+///
+/// ## Platform-specific
+///
+/// **iOS:**
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum SwipeDirection {
+    Right,
+    Left,
+    Up,
+    Down,
 }
 
 /// Describes a button of a mouse controller.

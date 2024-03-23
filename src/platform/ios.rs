@@ -84,6 +84,14 @@ impl<T: 'static> EventLoopExtIOS for EventLoop<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum SwipeDirection {
+    Right,
+    Left,
+    Up,
+    Down,
+}
+
 /// Additional methods on [`Window`] that are specific to iOS.
 pub trait WindowExtIOS {
     /// Sets the [`contentScaleFactor`] of the underlying [`UIWindow`] to `scale_factor`.
@@ -156,6 +164,16 @@ pub trait WindowExtIOS {
     ///
     /// The default is to not recognize gestures.
     fn recognize_pinch_gesture(&self, should_recognize: bool);
+
+    /// Sets whether the [`Window`] should recognize swipe gestures.
+    ///
+    /// The default is to not recognize gestures.
+    fn recognize_swipe_gesture(
+        &self,
+        should_recognize: bool,
+        direction: SwipeDirection,
+        number_of_touches_required: u8,
+    );
 
     /// Sets whether the [`Window`] should recognize pan gestures.
     ///
@@ -248,6 +266,18 @@ impl WindowExtIOS for Window {
     fn recognize_rotation_gesture(&self, should_recognize: bool) {
         self.window
             .maybe_queue_on_main(move |w| w.recognize_rotation_gesture(should_recognize));
+    }
+
+    #[inline]
+    fn recognize_swipe_gesture(
+        &self,
+        should_recognize: bool,
+        direction: SwipeDirection,
+        number_of_touches_required: u8,
+    ) {
+        self.window.maybe_queue_on_main(move |w| {
+            w.recognize_swipe_gesture(should_recognize, direction, number_of_touches_required)
+        });
     }
 }
 

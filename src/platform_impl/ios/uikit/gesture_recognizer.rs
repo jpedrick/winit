@@ -31,6 +31,15 @@ extern_methods!(
 
         #[method_id(delegate)]
         pub fn delegate(&self) -> Id<ProtocolObject<dyn UIGestureRecognizerDelegate>>;
+
+        #[method(locationInView:)]
+        pub fn locationInView(&self, view: &UIView) -> CGPoint;
+
+        #[method(locationOfTouch:inView:)]
+        pub fn locationOfTouch(&self, touch_id: NSUInteger, view: &UIView) -> CGPoint;
+
+        #[method(numberOfTouches)]
+        pub fn numberOfTouches(&self) -> NSUInteger;
     }
 );
 
@@ -165,6 +174,47 @@ extern_methods!(
 
         #[method(maximumNumberOfTouches)]
         pub fn maximumNumberOfTouches(&self) -> NSUInteger;
+    }
+);
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct UISwipeGestureRecognizerDirection(pub NSUInteger);
+
+impl UISwipeGestureRecognizerDirection {
+    pub const Right: Self = Self(1 << 0);
+    pub const Left: Self = Self(1 << 1);
+    pub const Up: Self = Self(1 << 2);
+    pub const Down: Self = Self(1 << 3);
+}
+
+unsafe impl Encode for UISwipeGestureRecognizerDirection {
+    const ENCODING: Encoding = Encoding::Object;
+}
+
+// https://developer.apple.com/documentation/uikit/uiswipegesturerecognizer
+extern_class!(
+    #[derive(Debug, PartialEq, Eq, Hash)]
+    pub(crate) struct UISwipeGestureRecognizer;
+
+    unsafe impl ClassType for UISwipeGestureRecognizer {
+        type Super = UIGestureRecognizer;
+        type Mutability = mutability::InteriorMutable;
+    }
+);
+
+extern_methods!(
+    unsafe impl UISwipeGestureRecognizer {
+        #[method(direction)]
+        pub fn direction(&self) -> UISwipeGestureRecognizerDirection;
+
+        #[method(setDirection:)]
+        pub fn setDirection(&self, direction: UISwipeGestureRecognizerDirection);
+
+        #[method(numberOfTouchesRequired)]
+        pub fn numberOfTouchesRequired(&self) -> NSUInteger;
+
+        #[method(setNumberOfTouchesRequired:)]
+        pub fn setNumberOfTouchesRequired(&self, numberOfTouchesRequired: NSUInteger);
     }
 );
 

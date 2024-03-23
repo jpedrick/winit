@@ -29,7 +29,7 @@ pub(crate) use self::geometry::UIRectEdge;
 pub(crate) use self::gesture_recognizer::{
     UIGestureRecognizer, UIGestureRecognizerDelegate, UIGestureRecognizerState,
     UIPanGestureRecognizer, UIPinchGestureRecognizer, UIRotationGestureRecognizer,
-    UITapGestureRecognizer,
+    UISwipeGestureRecognizer, UISwipeGestureRecognizerDirection, UITapGestureRecognizer,
 };
 pub(crate) use self::responder::UIResponder;
 pub(crate) use self::screen::{UIScreen, UIScreenOverscanCompensation};
