@@ -350,10 +350,13 @@ declare_class!(
                     device_id: DEVICE_ID,
                     location: PhysicalPosition::new(location.x as _, location.y as _),
                     phase,
-                    right: UISwipeGestureRecognizerDirection::Right == recognizer_direction,
-                    left: UISwipeGestureRecognizerDirection::Left == recognizer_direction,
-                    up: UISwipeGestureRecognizerDirection::Up == recognizer_direction,
-                    down: UISwipeGestureRecognizerDirection::Down == recognizer_direction,
+                    direction: match recognizer_direction {
+                        UISwipeGestureRecognizerDirection::Right => crate::event::SwipeDirection::Right,
+                        UISwipeGestureRecognizerDirection::Left => crate::event::SwipeDirection::Left,
+                        UISwipeGestureRecognizerDirection::Up => crate::event::SwipeDirection::Up,
+                        UISwipeGestureRecognizerDirection::Down => crate::event::SwipeDirection::Down,
+                        unknown => panic!("Unknown swipe direction {unknown:?}"),
+                    },
                     number_of_touches: recognizer.numberOfTouchesRequired() as _,
                 },
             });
